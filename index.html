@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Repetitive Defects Monitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f4f6f9; --panel:#fff; --ink:#14213d; --muted:#5f6b7f; --line:#dde3ec;
+  --navy:#0b1f4b; --navy2:#16336f; --accent:#1f6feb;
+  --new:#c62828; --newbg:#fdecec; --prog:#b26a00; --progbg:#fff4e0;
+  --watch:#1f6feb; --watchbg:#e8f0fe; --ok:#1b7f3b; --okbg:#e6f4ea; --rec:#7b1fa2; --recbg:#f3e5f5;
+  --grey:#6b7280; --greybg:#eef0f3;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+header{background:var(--navy);color:#fff;padding:14px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;font-weight:650;letter-spacing:.2px}
+header .sub{opacity:.7;font-size:12px}
+header .ref{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px}
+.hbtn{padding:5px 11px;font-size:12px;background:var(--navy2);color:#fff;border:1px solid #3a5490}
+.hbtn:hover{border-color:#7f9bd6}
+.hbtn.hpri{background:#2f7cf6;border-color:#2f7cf6}
+.hbtn.hdanger{background:transparent;border-color:#a94b4b;color:#ffb4b4}
+.hsep{width:1px;height:22px;background:#3a5490;margin:0 4px}
+header input[type=date]{background:var(--navy2);color:#fff;border:1px solid #3a5490;border-radius:6px;padding:5px 8px;color-scheme:dark}
+nav{background:var(--navy2);display:flex;gap:2px;padding:0 16px;overflow-x:auto}
+nav a{color:#c9d4ec;text-decoration:none;padding:10px 14px;font-size:13px;border-bottom:3px solid transparent;white-space:nowrap}
+nav a.on{color:#fff;border-bottom-color:#5aa0ff}
+nav a .n{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:#2d4d8f;font-size:11px;text-align:center}
+nav a .n.hot{background:var(--new);color:#fff}
+main{padding:20px 22px;max-width:1300px;margin:0 auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer}
+.kpi .v{font-size:24px;font-weight:700}
+.kpi .l{font-size:12px;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.panel h2{font-size:15px;margin:0 0 12px}
+.panel h3{font-size:13px;margin:16px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.4px;font-weight:600;background:#fafbfd}
+tr.click{cursor:pointer}
+tr.click:hover td{background:#f6f9ff}
+.chip{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:650;white-space:nowrap}
+.s-new{background:var(--newbg);color:var(--new)}
+.s-in_progress{background:var(--progbg);color:var(--prog)}
+.s-watching{background:var(--watchbg);color:var(--watch)}
+.s-watch_ok{background:var(--okbg);color:var(--ok)}
+.s-recurred{background:var(--recbg);color:var(--rec)}
+.s-closed{background:var(--greybg);color:var(--grey)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+button,.btn{font:inherit;font-size:13px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 13px;cursor:pointer}
+button:hover{border-color:#aab6c8}
+button.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+button.pri:hover{background:#185ac2}
+button.warn{background:var(--prog);border-color:var(--prog);color:#fff}
+button.good{background:var(--ok);border-color:var(--ok);color:#fff}
+button.danger{color:var(--new);border-color:#f0b9b9}
+button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.drop{border:2px dashed #b8c4d8;border-radius:10px;padding:28px;text-align:center;background:#fafcff;cursor:pointer}
+.drop.over{border-color:var(--accent);background:#eef4ff}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+input[type=text],input[type=number],input[type=date],select,textarea{font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}
+textarea{width:100%;min-height:70px;resize:vertical}
+.empty{text-align:center;padding:36px;color:var(--muted)}
+.strip{display:flex;gap:2px;align-items:flex-end}
+.strip i{display:block;width:6px;height:14px;border-radius:2px;background:#e4e9f1}
+.strip i.d1{background:#f2a3a3}.strip i.d2{background:#e05555}.strip i.d3{background:#a51d1d}
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(10,20,40,.38);display:none;z-index:20}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(760px,100%);background:var(--bg);z-index:21;transform:translateX(100%);transition:transform .2s ease;overflow-y:auto;box-shadow:-6px 0 24px rgba(0,0,0,.15)}
+.drawer.open{transform:none}
+.scrim.open{display:block}
+.dhead{background:var(--navy);color:#fff;padding:16px 20px;position:sticky;top:0;z-index:2}
+.dhead .t{font-size:18px;font-weight:700}
+.dhead .x{position:absolute;right:14px;top:12px;background:transparent;color:#fff;border:none;font-size:22px}
+.dbody{padding:16px 20px}
+.steps{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.steps span{font-size:11px;padding:3px 9px;border-radius:12px;background:#24407c;color:#9fb2d8}
+.steps span.done{background:#2e7d4f;color:#fff}
+.steps span.cur{background:#5aa0ff;color:#04163a;font-weight:700}
+.log{font-size:12px;border-left:2px solid var(--line);padding-left:12px}
+.log div{margin-bottom:6px}
+.banner{padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px}
+.banner.rec{background:var(--recbg);color:var(--rec);border:1px solid #dcb6e6}
+.banner.ok{background:var(--okbg);color:var(--ok);border:1px solid #b4dcc0}
+.banner.watch{background:var(--watchbg);color:var(--watch);border:1px solid #b9cff7}
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:30;background:rgba(10,20,40,.45)}
+.modal.open{display:flex}
+.modal .box{background:#fff;border-radius:12px;padding:20px;width:min(640px,94vw);max-height:90vh;overflow:auto}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40}
+.toast.on{opacity:1}
+tr.recur td{background:#faf1fc}
+tr.hasnew td{background:#fdecec}
+tr.hasnew:hover td{background:#fadada}
+tr.newwo td{background:#fdecec}
+.chip.s-newwo{background:var(--new);color:#fff}
+.chip.s-awo{background:#e9eef7;color:var(--navy2);font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.cyc{border-left:3px solid #c9d2e0;padding-left:10px;margin-top:14px}
+.mx td.c.st-pending{background:#fdecec;color:#c62828;box-shadow:inset 0 0 0 2px #c62828}
+.banner.newwo{background:#fdecec;color:#8f1d1d;border:1px solid #f3b7b7}
+tr.prior td{color:#9aa3b2}
+.tl{width:100%;height:auto;display:block}
+.mx{overflow:auto;max-height:70vh}
+.mx table{border-collapse:separate;border-spacing:3px;width:auto}
+.mx th,.mx td{border:none;padding:0}
+.mx th.col{font-size:11px;color:var(--muted);font-weight:600;writing-mode:vertical-rl;white-space:nowrap;transform:rotate(180deg);padding:6px 0;height:70px;text-align:left;background:none;font-family:ui-monospace,Menlo,Consolas,monospace;position:sticky;top:0;background:var(--panel)}
+.mx th.rowh{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;padding-right:10px;text-transform:none;background:var(--panel);position:sticky;left:0;z-index:1;white-space:nowrap}
+.mx td.c{width:34px;height:30px;text-align:center;font-size:12px;font-weight:650;border-radius:5px;background:#f1f4f8;color:transparent}
+.mx td.c.v1{background:#fde3e3;color:#b04a4a;cursor:pointer}
+.mx td.c.v2{background:#f6b0b0;color:#8f2020;cursor:pointer}
+.mx td.c.rpi{background:#c62828;color:#fff;cursor:pointer}
+.mx td.c.st-in_progress{background:#e69a1e;color:#fff}
+.mx td.c.st-watching,.mx td.c.st-watch_ok{background:#1f6feb;color:#fff}
+.mx td.c.st-recurred{background:#7b1fa2;color:#fff;box-shadow:0 0 0 2px #e1bee7}
+.mx td.c:hover{outline:2px solid var(--ink)}
+.mx td.tot{font-size:11px;color:var(--muted);text-align:center;padding:0 6px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:4px 0 12px}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-3px;margin-right:5px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Repetitive Defects Monitor</h1>
+    <div class="sub">MCC · A320 family · RPI detection &amp; follow-up</div>
+  </div>
+  <div class="ref">
+    <span id="refLbl">Analysis date</span>
+    <input type="date" id="refDate">
+    <button id="refToday" class="hbtn" title="Back to the latest date in the data">Latest</button>
+    <span class="hsep"></span>
+    <button id="hSample" class="hbtn hpri">＋ Add data sample</button>
+    <button id="hClean" class="hbtn hdanger">Clean app</button>
+  </div>
+</header>
+<nav id="nav"></nav>
+<main id="main"></main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer"></aside>
+<div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="fileIn" accept=".xlsx,.xls,.xlsm,.csv" hidden>
+
+<script>
+/* ============ utilities ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DAY = 86400000;
+const toDay = iso => Math.floor(Date.UTC(+iso.slice(0,4), +iso.slice(5,7)-1, +iso.slice(8,10)) / DAY);
+const fromDay = n => new Date(n*DAY).toISOString().slice(0,10);
+const todayIso = () => { const d = new Date(); return fromDay(Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())/DAY)); };
+const fmt = iso => { if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}.${m}.${y}`; };
+const nowStamp = () => new Date().toISOString().slice(0,16).replace('T',' ');
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),2400); }
+
+const MONTHS={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+function parseDate(v){
+  if(v==null || v==='') return null;
+  if(v instanceof Date && !isNaN(v)) return fromDay(Math.floor(Date.UTC(v.getFullYear(),v.getMonth(),v.getDate())/DAY));
+  if(typeof v==='number'){ // Excel serial
+    if(v>20000 && v<80000) return fromDay(Math.floor(v) - 25569);
+    return null;
+  }
+  const s=String(v).trim();
+  let m;
+  if((m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))) return iso(+m[1],+m[2],+m[3]);
+  if((m=s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/))){ let y=+m[3]; if(y<100) y+=2000; return iso(y,+m[2],+m[1]); }
+  if((m=s.match(/^(\d{1,2})[\s-]?([A-Za-z]{3})[a-z]*[\s-]?(\d{2,4})/))){ const mo=MONTHS[m[2].toLowerCase()]; let y=+m[3]; if(y<100) y+=2000; if(mo) return iso(y,mo,+m[1]); }
+  const d=new Date(s); if(!isNaN(d)) return fromDay(Math.floor(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/DAY));
+  return null;
+  function iso(y,mo,d){ if(mo<1||mo>12||d<1||d>31) return null; return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+}
+function ataDigits(a){ return String(a??'').replace(/\D/g,''); }
+function ataFmt(dig){ return dig.match(/.{1,2}/g)?.join('-') || ''; }
+
+/* ============ state ============ */
+const KEY='rdm.v1';
+let S = load();
+function blank(){ return { defects:[], events:{}, closed:[], resetAfter:{}, settings:{lookback:21, threshold:3, watch:10, rootMode:'desc', sim:0.6, ataLevel:4}, refDate:null, uploads:[] }; }
+function load(){ try{ const j=JSON.parse(localStorage.getItem(KEY)); if(j && j.defects){ const b=blank(); const o=Object.assign(b, j); o.settings=Object.assign(blank().settings, j.settings||{}); return o; } }catch(e){} return blank(); }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ } }
+
+/* default analysis date = latest defect date in the data (Skywise exports can lag behind today) */
+function latestData(){ let m=''; const t=todayIso(); for(const d of S.defects) if(d.date>m && d.date<=t) m=d.date; return m||t; }
+const refIso = () => S.refDate || latestData();
+const refDay = () => toDay(refIso());
+
+/* ---- description-based root matching ---- */
+const STOP=new Set('A AN THE ON IN AT OF TO FOR AND OR BY DURING AFTER BEFORE WHILE WITH FROM WAS WERE IS ARE BE BEEN WHEN THEN ALSO AGAIN STILL REPORTED REPORT REPORTS CREW PILOT PILOTS CAPT FO MSG MESSAGE ECAM IAW MEL CDL RESET RESETS OK DONE PLACARDED SUSPECTED CHECKED CHECK FOUND NOTED OBSERVED CRUISE CLIMB DESCENT APPROACH APP TAXI TAXIIN TAXIOUT TAKEOFF TO LANDING LDG FLIGHT FLT PHASE GROUND GND INFLIGHT INTERMITTENTLY THIS THAT IT ITS SAME TIME TIMES SEVERAL'.split(' '));
+const SYN={INOPERATIVE:'INOP',UNSERVICEABLE:'INOP',US:'INOP',SHUTDOWN:'SHUTDOWN',FAILED:'FAULT',FAILURE:'FAULT',FAIL:'FAULT',FAULTY:'FAULT',OVERHEAT:'OVHT',ENGINE:'ENG',LEFT:'L',RIGHT:'R',PRESSURE:'PR',LOW:'LO'};
+function normDesc(t){
+  t=String(t||'').toUpperCase().replace(/SHUT\s*DOWN/g,'SHUTDOWN').replace(/U\/S/g,'INOP').replace(/[^A-Z0-9]+/g,' ').trim();
+  if(!t) return [];
+  const out=[];
+  for(let w of t.split(' ')){ w=SYN[w]||w; if(STOP.has(w)||!w) continue; if(!out.includes(w)) out.push(w); }
+  return out;
+}
+function simTok(a,b){
+  if(!a.length||!b.length) return 0;
+  const na=a.filter(w=>/^\d+$/.test(w)), nb=b.filter(w=>/^\d+$/.test(w));
+  if(na.length&&nb.length&&(na.join()!==nb.join())) return 0;   // PACK 1 ≠ PACK 2
+  const B=new Set(b); const inter=a.filter(w=>B.has(w)).length;
+  return inter/Math.min(a.length,b.length);
+}
+let ROOTS=new Map();
+function computeRoots(){
+  ROOTS=new Map();
+  if(S.settings.rootMode!=='desc') return;
+  const thr=S.settings.sim;
+  const byAc={};
+  for(const d of S.defects) if(!d.root) (byAc[d.ac] ||= []).push(d);
+  const known={};   // seed clusters from existing events / closed cycles so keys stay stable
+  for(const k of [...Object.keys(S.events),...Object.keys(S.resetAfter)]){
+    const i=k.indexOf('|'), ac=k.slice(0,i), r=k.slice(i+1);
+    if(r.startsWith('DS:')) (known[ac] ||= new Map()).set(r, r.slice(3).split(' '));
+  }
+  for(const [ac,list] of Object.entries(byAc)){
+    const cl=[...(known[ac]||new Map()).entries()].map(([key,tok])=>({key,tok}));
+    list.sort((a,b)=>a.date.localeCompare(b.date));
+    for(const d of list){
+      const t=normDesc(d.desc);
+      if(!t.length){ ROOTS.set(d.id,'DS:(NO TEXT)'); continue; }
+      let best=null, bs=0;
+      for(const c of cl){ const v=thr>=1 ? (c.tok.join(' ')===t.join(' ')?1:0) : simTok(t,c.tok); if(v>bs){bs=v;best=c;} }
+      if(best && bs>=Math.min(thr,1)) ROOTS.set(d.id,best.key);
+      else { const key='DS:'+t.join(' '); cl.push({key,tok:t}); ROOTS.set(d.id,key); }
+    }
+  }
+}
+function rootOf(d){
+  if(d.root) return 'RC:' + String(d.root).trim().toUpperCase();
+  if(S.settings.rootMode==='desc') return ROOTS.get(d.id) || ('DS:'+normDesc(d.desc).join(' '));
+  const dig = ataDigits(d.ata);
+  if(!dig) return 'ATA:??';
+  const n = S.settings.ataLevel;
+  return 'ATA:' + ataFmt(dig.padEnd(n,'0').slice(0,n));
+}
+const rootLabel = r => r.startsWith('ATA:') ? 'ATA ' + r.slice(4) : r.slice(3);
+const ataChap = a => { const g=ataDigits(a); return g.length>=2 ? g.slice(0,2) : '—'; };
+
+/* ============ detection engine ============ */
+function analyse(){
+  const ref = refDay(), lb = S.settings.lookback, th = S.settings.threshold;
+  const winStart = ref - lb + 1;
+  const groups = {};
+  for(const d of S.defects){
+    const key = d.ac + '|' + rootOf(d);
+    const ra = S.resetAfter[key];
+    if(ra && d.date <= ra) continue;                 // already handled in a closed cycle
+    if(toDay(d.date) > ref) continue;                // future relative to analysis date
+    (groups[key] ||= []).push(d);
+  }
+  const out = [];
+  const keys = new Set([...Object.keys(groups), ...Object.keys(S.events)]);
+  for(const key of keys){
+    const list = (groups[key]||[]).sort((a,b)=>a.date.localeCompare(b.date));
+    const inWin = list.filter(d => toDay(d.date) >= winStart);
+    const ev = S.events[key];
+    if(!ev && inWin.length < th) continue;
+    const [ac, root] = [key.split('|')[0], key.slice(key.indexOf('|')+1)];
+    let status = 'new', recur = [], dayN = 0, pend = [];
+    if(ev){
+      status = ev.status;
+      ev.wos ||= {}; ev.seen ||= {};
+      const known = id => ev.wos[id] || ev.seen[id];
+      if(ev.status === 'in_progress') pend = list.filter(d => !known(d.id));
+      if(ev.status === 'watching'){
+        const a = toDay(ev.action.date), end = a + S.settings.watch;
+        pend = list.filter(d => !known(d.id) && toDay(d.date) <= end);
+        recur = pend.filter(d => toDay(d.date) > a);          // new WO inside the watch period
+        dayN = Math.min(ref - a, S.settings.watch);
+        if(ref >= end && !pend.length) status = 'watch_ok';
+      }
+    }
+    // most frequent description words as a label
+    const desc = topDesc(inWin.length ? inWin : list);
+    out.push({ key, ac, root, list, inWin, status, ev, recur, pend, dayN, desc, name: ev?.name || '', awo: ev?.actionWo || '', cyc: (ev?.cycles?.length||0)+1,
+               first: inWin[0]?.date, last: (inWin.at(-1)||list.at(-1))?.date });
+  }
+  const order = {new:1,in_progress:2,watch_ok:3,watching:4};
+  out.sort((a,b)=> ((b.pend.length?1:0)-(a.pend.length?1:0)) || (order[a.status]-order[b.status]) || (b.inWin.length-a.inWin.length) || a.ac.localeCompare(b.ac));
+  return out;
+}
+function topDesc(list){
+  if(!list.length) return '';
+  const c={}; list.forEach(d=>{ const k=(d.desc||'').trim(); if(k) c[k]=(c[k]||0)+1; });
+  const best = Object.entries(c).sort((a,b)=>b[1]-a[1])[0];
+  return best ? best[0] : '';
+}
+
+/* ============ status meta ============ */
+const ST = {
+  new:{t:'RPI – new', d:'≥ threshold in look-back window, not yet worked'},
+  in_progress:{t:'In progress', d:'WOs picked up by MCC'},
+  watching:{t:'Watching', d:'Action done, monitoring for recurrence'},
+  watch_ok:{t:'Watch passed', d:'No recurrence in watch period — ready to close'},
+  closed:{t:'Closed', d:''}
+};
+const chip = s => `<span class="chip s-${s}">${ST[s].t}</span>`;
+
+/* ============ routing / render ============ */
+const TABS = [
+  {id:'alerts', t:'RPI alerts', f:e=>e.status==='new', hot:true},
+  {id:'merge', t:'To merge', f:e=>e.pend.length>0, hot:true},
+  {id:'progress', t:'In progress', f:e=>e.status==='in_progress'},
+  {id:'watch', t:'Watch list', f:e=>e.status==='watching'||e.status==='watch_ok'},
+  {id:'matrix', t:'Matrix'},
+  {id:'closed', t:'Closed'},
+  {id:'data', t:'Data upload'},
+];
+let curTab=null;
+try{ const h=location.hash.slice(1); if(['alerts','merge','progress','watch','matrix','closed','data'].includes(h)) curTab=h; }catch(e){}
+function route(){ return TABS.find(t=>t.id===curTab) ? curTab : (S.defects.length ? 'alerts' : 'data'); }
+function go(id){ curTab=id; try{ history.replaceState(null,'','#'+id); }catch(e){} render(); window.scrollTo(0,0); }
+let EV = [];
+function render(){
+  computeRoots();
+  EV = analyse();
+  const r = route();
+  $('#refDate').value = refIso();
+  { const l=document.getElementById('refLbl'); if(l) l.textContent = S.refDate ? 'Analysis date' : (latestData()<todayIso() ? 'Analysis date (latest data)' : 'Analysis date'); }
+  $('#nav').innerHTML = TABS.map(t=>{
+    let n = '';
+    if(t.f){ const L=EV.filter(t.f), c=L.length, p=t.id==='merge'?0:L.filter(e=>e.pend.length).length; n=`<span class="n ${(t.hot&&c)||p?'hot':''}" title="${p?p+' with new WOs':''}">${c}${p?' · '+p+' new':''}</span>`; }
+    if(t.id==='matrix') n='';
+    if(t.id==='closed') n=`<span class="n">${S.closed.length}</span>`;
+    if(t.id==='data') n=`<span class="n">${S.defects.length}</span>`;
+    return `<a href="#${t.id}" data-tab="${t.id}" class="${t.id===r?'on':''}">${t.t}${n}</a>`;
+  }).join('');
+  const m = $('#main');
+  if(r==='data') m.innerHTML = viewData();
+  else if(r==='closed') m.innerHTML = kpis() + viewClosed();
+  else if(r==='matrix') m.innerHTML = kpis() + viewMatrix();
+  else m.innerHTML = kpis() + viewList(TABS.find(t=>t.id===r));
+  bindMain(r);
+  if(openKey) renderDrawer();
+}
+function kpis(){
+  const c = s => EV.filter(e=>e.status===s).length;
+  const dates = S.defects.map(d=>d.date).sort();
+  return `<div class="kpis">
+    <div class="kpi" data-go="alerts"><div class="v" style="color:var(--new)">${c('new')}</div><div class="l">New RPI alerts</div></div>
+    <div class="kpi" data-go="merge" style="${EV.some(e=>e.pend.length)?'background:#fdecec;border-color:#f3b7b7':''}"><div class="v" style="color:var(--new)">${EV.filter(e=>e.pend.length).length}</div><div class="l">Events with new WOs to merge</div></div>
+    <div class="kpi" data-go="progress"><div class="v" style="color:var(--prog)">${c('in_progress')}</div><div class="l">In progress</div></div>
+    <div class="kpi" data-go="watch"><div class="v" style="color:var(--watch)">${c('watching')+c('watch_ok')}</div><div class="l">On watch (${S.settings.watch} d)</div></div>
+    <div class="kpi" data-go="data"><div class="v">${S.defects.length}</div><div class="l">Defects loaded${dates.length?` · ${fmt(dates[0])} – ${fmt(dates.at(-1))}`:''}</div></div>
+  </div>`;
+}
+function strip(e){
+  const ref=refDay(), lb=S.settings.lookback, cnt={};
+  e.inWin.forEach(d=>{ const k=toDay(d.date); cnt[k]=(cnt[k]||0)+1; });
+  let h='';
+  for(let i=ref-lb+1;i<=ref;i++){ const c=cnt[i]||0; h+=`<i class="${c?'d'+Math.min(c,3):''}" title="${fmt(fromDay(i))}${c?` · ${c} defect(s)`:''}"></i>`; }
+  return `<div class="strip">${h}</div>`;
+}
+function viewList(tab){
+  const rows = EV.filter(tab.f);
+  const intro = {
+    alerts:`Aircraft with <b>≥ ${S.settings.threshold} defects of the same root (${S.settings.rootMode==='desc'?'matching description text':'same ATA'})</b> within the last <b>${S.settings.lookback} days</b> (to ${fmt(refIso())}). Events already In progress or on Watch are not repeated here — new WOs for them show as light red in those lists.`,
+    merge:'Only events <b>In progress</b> or on <b>Watch</b> that received new WOs with the same root. Open an event to merge the new WOs or mark them as not related — it then drops off this list.',
+    progress:'Events where MCC has picked up the related WOs. <b style="color:var(--new)">Light red</b> = new WOs with the same root arrived in an upload — open the event to merge them. Record the action to start the watch period.',
+    watch:`Events in the ${S.settings.watch}-day watch period after the action. <b style="color:var(--new)">Light red</b> = a new WO with the same root arrived during the watch — open it to merge (watch fails, back to In progress) or mark as not related.`
+  }[tab.id];
+  if(!S.defects.length) return `<div class="panel empty">No defect data yet.<br><br><button data-go="data">Upload Excel</button> &nbsp; <button id="demoBtn2" class="pri">＋ Add data sample</button></div>`;
+  return `<div class="panel"><h2>${tab.t}</h2><p class="muted small" style="margin-top:-6px">${intro}</p>
+  ${rows.length ? `<table><thead><tr><th>Status</th><th>Aircraft</th><th>Event name · action WO</th><th>Root (matched text)</th><th>ATA</th><th>In ${S.settings.lookback} d</th><th>Last</th><th>Last ${S.settings.lookback} days</th>${tab.id==='watch'||tab.id==='merge'?'<th>Watch</th>':''}</tr></thead><tbody>
+  ${rows.map(e=>`<tr class="click ${e.pend.length?'hasnew':''}" data-key="${esc(e.key)}">
+    <td>${chip(e.status)}${e.pend.length?` <span class="chip s-newwo">+${e.pend.length} new WO</span>`:''}</td><td class="mono"><b>${esc(e.ac)}</b></td>
+    <td>${e.name?`<b>${esc(e.name)}</b>${e.awo?` <span class="chip s-awo" title="WO for requested action">${esc(e.awo)}</span>`:''}${e.cyc>1?` <span class="chip s-closed">cycle ${e.cyc}</span>`:''}<div class="small muted">${esc(e.desc).slice(0,70)}</div>`:esc(e.desc).slice(0,70)}</td><td class="mono small">${esc(rootLabel(e.root))}</td><td class="mono small">${esc((e.inWin[0]||e.list[0]||{}).ata||'')}</td><td><b>${e.inWin.length}</b></td><td>${fmt(e.last)}</td><td>${strip(e)}</td>
+    ${tab.id==='merge'?`<td class="small">${e.status==='in_progress'?'—':e.recur.length?'<b style="color:var(--new)">New WO in watch</b>':'Before action'}</td>`:''}
+    ${tab.id==='watch'?`<td class="small">${e.status==='watch_ok'?'Complete':e.recur.length?'<b style="color:var(--new)">New WO in watch</b>':`Day ${e.dayN}/${S.settings.watch}`}</td>`:''}
+  </tr>`).join('')}</tbody></table>` : `<div class="empty">${tab.id==='merge'?'No new WOs waiting to be merged.':'Nothing here for '+fmt(refIso())+'.'}</div>`}</div>`;
+}
+function viewClosed(){
+  if(!S.closed.length) return `<div class="panel empty">No closed events yet.</div>`;
+  return `<div class="panel"><h2>Closed events</h2><table><thead><tr><th>Aircraft</th><th>Event name</th><th>Outcome</th><th>Action</th><th>Closed</th><th>WOs</th></tr></thead><tbody>
+  ${S.closed.slice().reverse().map((c,i)=>`<tr class="click" data-closed="${S.closed.length-1-i}"><td class="mono"><b>${esc(c.ac)}</b></td><td>${c.name?`<b>${esc(c.name)}</b>${c.actionWo?` <span class="chip s-awo">${esc(c.actionWo)}</span>`:''}${c.cycles?.length?` <span class="chip s-closed">${c.cycles.length+1} cycles</span>`:''}<div class="small muted mono">${esc(rootLabel(c.root))}</div>`:`<span class="mono">${esc(rootLabel(c.root))}</span>`}</td>
+  <td>${esc(c.outcome)}</td><td class="small">${esc(c.action?.text||'—').slice(0,60)}</td><td>${fmt(c.closedOn)}</td><td>${c.wos.length}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function viewData(){
+  const s=S.settings;
+  const last = S.defects.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  return `<div class="grid2">
+  <div class="panel"><h2>1 · Upload defect export</h2>
+    <div class="drop" id="drop"><b>Drop Excel / CSV here</b><br><span class="muted small">or click to choose a file · .xlsx .xls .csv</span></div>
+    <p class="small muted">Only <b>new WOs</b> are added — WO numbers already in the app are skipped, so you can upload a full export every day. New WOs are checked for new RPIs and for links to events In progress or on Watch.</p>
+    <p class="small muted">Expected columns (names are auto-detected, you confirm the mapping): <b>Aircraft/Reg</b>, <b>Date</b>, <b>WO number</b>, <b>ATA</b>, <b>Description</b>; optional <b>Root / fault code</b> column to group by instead of ATA.</p>
+    <div class="row"><button id="demoBtn" class="pri">＋ Add data sample</button>${S.uploads.length?`<span class="small muted">Last upload: ${esc(S.uploads.at(-1).name)} · ${esc(S.uploads.at(-1).at)}</span>`:''}</div>
+  </div>
+  <div class="panel"><h2>Detection rules</h2>
+    <div class="row" style="align-items:flex-end">
+      <label class="f">Look-back (days)<input type="number" id="setLb" min="1" value="${s.lookback}" style="width:90px"></label>
+      <label class="f">Min. defects<input type="number" id="setTh" min="2" value="${s.threshold}" style="width:90px"></label>
+      <label class="f">Watch (days)<input type="number" id="setW" min="1" value="${s.watch}" style="width:90px"></label>
+      <label class="f">Same root =<select id="setAta">
+        <option value="desc" ${s.rootMode==='desc'?'selected':''}>Description text</option>
+        <option value="2" ${s.rootMode!=='desc'&&s.ataLevel==2?'selected':''}>ATA chapter (21)</option>
+        <option value="4" ${s.rootMode!=='desc'&&s.ataLevel==4?'selected':''}>ATA sub-chapter (21-51)</option>
+        <option value="6" ${s.rootMode!=='desc'&&s.ataLevel==6?'selected':''}>ATA section (21-51-00)</option></select></label>
+      ${s.rootMode==='desc'?`<label class="f">Text match<select id="setSim">
+        <option value="1" ${s.sim>=1?'selected':''}>Exact (same words)</option>
+        <option value="0.8" ${s.sim==0.8?'selected':''}>Strict (80 %)</option>
+        <option value="0.6" ${s.sim==0.6?'selected':''}>Normal (60 %)</option>
+        <option value="0.4" ${s.sim==0.4?'selected':''}>Loose (40 %)</option></select></label>`:''}
+    </div>
+    <p class="small muted">Grouping is per aircraft. <b>Description text:</b> filler words (crew, reported, ECAM, on climb, reset IAW MEL…) are ignored and the key words compared — e.g. “PACK 1 FAULT in cruise” = “Pack 1 fault after engine start”, but PACK 1 ≠ PACK 2 (different numbers never match). A mapped root/fault code column overrides this.</p>
+    <h3>Backup</h3>
+    <div class="row"><button id="bkCopy">Copy backup</button><button id="bkLoad">Restore backup</button><button id="clearAll" class="danger">Clean app</button></div>
+  </div></div>
+  <div class="panel"><h2>Loaded defects <span class="muted small">(${S.defects.length})</span></h2>
+  <input type="text" id="q" placeholder="Filter by aircraft, WO, ATA, text…" style="width:300px;margin-bottom:10px">
+  <div id="dtab">${dataTable(last,'')}</div></div>`;
+}
+function woStatus(d){
+  for(const e of EV){
+    if(!e.ev) continue;
+    if(e.ev.wos?.[d.id]) return chip(e.status);
+    if(e.pend.includes(d)) return '<span class="chip s-newwo">New – merge?</span>';
+  }
+  return '';
+}
+function dataTable(list,q){
+  q=q.toLowerCase();
+  const f = q ? list.filter(d=>[d.ac,d.wo,d.ata,d.desc,d.root].join(' ').toLowerCase().includes(q)) : list;
+  if(!f.length) return `<div class="empty">No rows.</div>`;
+  return `<table><thead><tr><th>Date</th><th>Aircraft</th><th>WO</th><th>ATA</th><th>Description</th><th>Root (matched)</th><th>MCC status</th></tr></thead><tbody>
+  ${f.slice(0,300).map(d=>`<tr><td>${fmt(d.date)}</td><td class="mono">${esc(d.ac)}</td><td class="mono">${esc(d.wo)}</td><td class="mono">${esc(d.ata)}</td><td>${esc(d.desc)}</td><td class="mono small">${esc(rootLabel(rootOf(d)))}</td><td>${woStatus(d)}</td></tr>`).join('')}
+  </tbody></table>${f.length>300?`<p class="small muted">Showing 300 of ${f.length}.</p>`:''}`;
+}
+
+function bindMain(r){
+  document.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>go(el.dataset.go));
+  document.querySelectorAll('tr[data-key]').forEach(el=>el.onclick=()=>openDrawer(el.dataset.key));
+  document.querySelectorAll('tr[data-closed]').forEach(el=>el.onclick=()=>showClosed(+el.dataset.closed));
+  const demo = $('#demoBtn')||$('#demoBtn2'); if(demo) demo.onclick=addSample;
+  document.querySelectorAll('td.c[data-ac]').forEach(td=>td.onclick=()=>matrixClick(td.dataset.ac, td.dataset.root));
+  if(r!=='data') return;
+  const drop=$('#drop'), fi=$('#fileIn');
+  drop.onclick=()=>fi.click();
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};
+  drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over'); if(e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]);};
+  fi.onchange=()=>{ if(fi.files[0]) readFile(fi.files[0]); fi.value=''; };
+  const setN=(id,k)=>$(id).onchange=e=>{ const v=Math.max(1,parseInt(e.target.value)||1); S.settings[k]=v; save(); render(); };
+  setN('#setLb','lookback'); setN('#setTh','threshold'); setN('#setW','watch');
+  $('#setAta').onchange=e=>{ const v=e.target.value; if(v==='desc') S.settings.rootMode='desc'; else { S.settings.rootMode='ata'; S.settings.ataLevel=+v; } save(); render(); };
+  if($('#setSim')) $('#setSim').onchange=e=>{ S.settings.sim=+e.target.value; save(); render(); };
+  const last=S.defects.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  $('#q').oninput=e=>$('#dtab').innerHTML=dataTable(last,e.target.value);
+  $('#bkCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(JSON.stringify(S)); toast('Backup copied to clipboard'); }catch(e){ modal(`<h2>Backup</h2><p class="small muted">Copy this text and keep it safe:</p><textarea style="min-height:240px">${esc(JSON.stringify(S))}</textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button onclick="closeModal()">Close</button></div>`); } };
+  $('#bkLoad').onclick=()=>modal(`<h2>Restore backup</h2><p class="small muted">Paste backup text. This replaces all current data.</p><textarea id="bkTxt" style="min-height:200px"></textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button onclick="closeModal()">Cancel</button><button class="pri" id="bkGo">Restore</button></div>`, ()=>{
+    $('#bkGo').onclick=()=>{ try{ const j=JSON.parse($('#bkTxt').value); if(!j.defects) throw 0; S=Object.assign(blank(),j); save(); closeModal(); render(); toast('Backup restored'); }catch(e){ toast('Not a valid backup'); } };
+  });
+  $('#clearAll').onclick=cleanApp;
+}
+
+/* ============ Excel import ============ */
+let pending=null;
+function readFile(file){
+  if(typeof XLSX==='undefined'){ toast('Excel reader failed to load'); return; }
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+      pending={file:file.name, wb, sheet:wb.SheetNames[0]};
+      openMapping();
+    }catch(err){ toast('Could not read file: '+err.message); }
+  };
+  rd.readAsArrayBuffer(file);
+}
+const FIELDS=[
+  {k:'ac',t:'Aircraft / registration',req:1,re:/^(a\/?c\b|aircraft|reg|registration|tail|ac ?reg|fin)/i},
+  {k:'date',t:'Defect date',req:1,re:/date|reported|found|raised|created|occur/i},
+  {k:'wo',t:'WO / defect number',req:0,re:/^(wo\b|w\/o|work ?order|order|defect ?(no|id|nr|#|number)|tlb|tech ?log|wo ?(no|nr|number|#))/i},
+  {k:'ata',t:'ATA',req:0,re:/ata|chapter|chap/i},
+  {k:'desc',t:'Description',req:0,re:/desc|defect|text|fault|remark|complaint|title|finding/i},
+  {k:'root',t:'Root / fault code (optional)',req:0,re:/fault ?code|root|pfr|ecam|class|code/i},
+];
+function sheetRows(){
+  const ws=pending.wb.Sheets[pending.sheet];
+  const raw=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+  let h=0;
+  for(let i=0;i<Math.min(15,raw.length);i++){ if(raw[i].filter(c=>typeof c==='string'&&c.trim()).length>=3){ h=i; break; } }
+  const headers=(raw[h]||[]).map((c,i)=>String(c||'').trim()||`Column ${i+1}`);
+  return {headers, rows:raw.slice(h+1).filter(r=>r.some(c=>c!==''))};
+}
+function guess(headers){
+  const used=new Set(), map={};
+  for(const f of FIELDS){
+    const i=headers.findIndex((h,ix)=>!used.has(ix)&&f.re.test(h));
+    if(i>=0){ map[f.k]=i; used.add(i); } else map[f.k]=-1;
+  }
+  return map;
+}
+function openMapping(){
+  const {headers,rows}=sheetRows();
+  const map=guess(headers);
+  const opts=sel=>`<option value="-1">— not used —</option>`+headers.map((h,i)=>`<option value="${i}" ${i===sel?'selected':''}>${esc(h)}</option>`).join('');
+  modal(`<h2 style="margin-top:0">Map columns · <span class="muted">${esc(pending.file)}</span></h2>
+    ${pending.wb.SheetNames.length>1?`<label class="f" style="margin-bottom:10px">Sheet<select id="mSheet">${pending.wb.SheetNames.map(s=>`<option ${s===pending.sheet?'selected':''}>${esc(s)}</option>`).join('')}</select></label>`:''}
+    <table>${FIELDS.map(f=>`<tr><td>${f.t}${f.req?' <span style="color:var(--new)">*</span>':''}</td><td><select data-f="${f.k}" style="width:100%">${opts(map[f.k])}</select></td></tr>`).join('')}</table>
+    <p class="small muted">${rows.length} data rows found. Preview of first row: <span class="mono">${esc(rows[0]?.slice(0,6).map(c=>c instanceof Date?c.toISOString().slice(0,10):c).join(' | ')||'')}</span></p>
+    <div class="row" style="justify-content:flex-end"><button onclick="closeModal()">Cancel</button><button class="pri" id="mGo">Import</button></div>`,()=>{
+      if($('#mSheet')) $('#mSheet').onchange=e=>{ pending.sheet=e.target.value; openMapping(); };
+      $('#mGo').onclick=()=>{
+        const m={}; document.querySelectorAll('[data-f]').forEach(s=>m[s.dataset.f]=+s.value);
+        if(m.ac<0||m.date<0){ toast('Aircraft and Date columns are required'); return; }
+        importRows(rows,m);
+      };
+  });
+}
+function importRows(rows,m,extra){
+  const get=(r,k)=>m[k]>=0?r[m[k]]:'';
+  let added=0, updated=0, skipped=0;
+  const idx=new Map(S.defects.map((d,i)=>[d.id,i]));
+  const fresh=new Set();
+  for(const r of rows){
+    const ac=String(get(r,'ac')).trim().toUpperCase(); const date=parseDate(get(r,'date'));
+    if(!ac||!date){ skipped++; continue; }
+    const wo=String(get(r,'wo')).trim(), desc=String(get(r,'desc')).trim();
+    const d={ac,date,wo,ata:String(get(r,'ata')).trim(),desc,root:String(get(r,'root')).trim()};
+    d.id = wo ? 'WO:'+wo : 'X:'+ac+'|'+date+'|'+desc.slice(0,60);
+    if(!d.wo) d.wo='—';
+    d.up = S.uploads.length;
+    if(idx.has(d.id)){ updated++; continue; }          // already in the app → ignore, only new WOs are added
+    idx.set(d.id,S.defects.length); S.defects.push(d); added++; fresh.add(d.id);
+  }
+  const fileName=pending.file;
+  S.uploads.push({name:fileName, at:nowStamp(), added, updated});
+  const newBefore=new Set(EV.filter(e=>e.status==='new').map(e=>e.key));
+  save(); closeModal(); pending=null;
+  if(route()==='data') go('alerts'); else render();
+  importSummary({fileName, added, updated, skipped, fresh, newBefore, extra});
+}
+function importSummary(r){
+  const toMerge=[];
+  for(const e of EV){
+    if(!e.ev) continue;
+    const nw=e.pend.filter(d=>r.fresh.has(d.id));
+    if(nw.length) toMerge.push({e,n:nw.length});
+  }
+  const newRpi=EV.filter(e=>e.status==='new'&&!r.newBefore.has(e.key));
+  const info=`${r.added} new WO(s) uploaded${r.updated?` · ${r.updated} already in app (skipped)`:''}${r.skipped?` · ${r.skipped} rows without aircraft/date`:''}`;
+  if(!toMerge.length && !newRpi.length){ toast(r.added ? info+' · no new RPI or related WOs' : 'No new WOs in this file'); return; }
+  const evLine=x=>`<tr class="click" data-open="${esc(x.e.key)}"><td class="mono"><b>${esc(x.e.ac)}</b></td><td class="small">${x.e.name?`<b>${esc(x.e.name)}</b>${x.e.awo?` <span class="chip s-awo">${esc(x.e.awo)}</span>`:''}`:esc(rootLabel(x.e.root))}</td><td>${chip(x.e.status)}</td><td><b>${x.n}</b> WO</td></tr>`;
+  modal(`<h2 style="margin-top:0">Upload checked · <span class="muted">${esc(r.fileName)}</span></h2>
+  <p class="small muted">${info}</p>
+  ${toMerge.length?`<h3>New WOs related to In progress / Watch</h3><table><tbody>${toMerge.map(evLine).join('')}</tbody></table>`:''}
+  ${newRpi.length?`<h3>New RPI alerts</h3><table><tbody>${newRpi.map(e=>evLine({e,n:e.inWin.length})).join('')}</tbody></table>`:''}
+  <p class="small muted">Click a row to open the event.</p>
+  <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="pri" onclick="closeModal()">OK</button></div>`,()=>{
+    document.querySelectorAll('#modalBox [data-open]').forEach(el=>el.onclick=()=>{ closeModal(); openDrawer(el.dataset.open); });
+  });
+}
+
+/* ============ event drawer ============ */
+let openKey=null;
+function openDrawer(key){ openKey=key; renderDrawer(); $('#drawer').classList.add('open'); $('#scrim').classList.add('open'); }
+function closeDrawer(){ openKey=null; $('#drawer').classList.remove('open'); $('#scrim').classList.remove('open'); }
+$('#scrim').onclick=closeDrawer;
+
+function timeline(e){
+  const ref=refDay(), lb=S.settings.lookback, W=S.settings.watch;
+  const a = e.ev?.action ? toDay(e.ev.action.date) : null;
+  let start=Math.min(ref-lb+1, e.list.length?toDay(e.list[0].date):ref), end=ref;
+  if(a!=null) end=Math.max(end,a+W);
+  start=Math.max(start, end-75);
+  const n=end-start+1, w=700, h=70, px=(w-20)/n, x=d=>10+(d-start)*px;
+  let s=`<svg class="tl" viewBox="0 0 ${w} ${h}">`;
+  s+=`<rect x="${x(ref-lb+1)}" y="10" width="${lb*px}" height="34" fill="#fdecec" rx="3"/>`;
+  s+=`<text x="${x(ref-lb+1)+3}" y="8" font-size="9" fill="#c62828">${lb}-day window</text>`;
+  if(a!=null){ s+=`<rect x="${x(a)+px/2}" y="10" width="${W*px}" height="34" fill="#e8f0fe" rx="3" opacity=".9"/><text x="${x(a)+px/2+3}" y="8" font-size="9" fill="#1f6feb">watch ${W} d</text>`;
+    s+=`<line x1="${x(a)+px/2}" x2="${x(a)+px/2}" y1="6" y2="48" stroke="#1b7f3b" stroke-width="2"/><text x="${x(a)+px/2+3}" y="56" font-size="9" fill="#1b7f3b">action ${fmt(e.ev.action.date)}</text>`; }
+  s+=`<line x1="10" x2="${w-10}" y1="27" y2="27" stroke="#c9d2e0"/>`;
+  const cnt={}; e.list.forEach(d=>{ const k=toDay(d.date); if(k>=start) cnt[k]=(cnt[k]||0)+1; });
+  for(const [k,c] of Object.entries(cnt)){ const rec=e.pend.some(r=>toDay(r.date)==k); for(let i=0;i<c;i++) s+=`<circle cx="${x(+k)+px/2}" cy="${27-i*7+(c-1)*3.5}" r="4.5" fill="${rec?'#fff':'#c62828'}" stroke="#c62828" stroke-width="${rec?2.5:0}"><title>${fmt(fromDay(+k))}</title></circle>`; }
+  s+=`<line x1="${x(ref)+px}" x2="${x(ref)+px}" y1="4" y2="50" stroke="#14213d" stroke-dasharray="3 2"/><text x="${x(ref)+px-2}" y="66" font-size="9" text-anchor="end" fill="#14213d">${fmt(refIso())}</text>`;
+  s+=`<text x="10" y="66" font-size="9" fill="#5f6b7f">${fmt(fromDay(start))}</text></svg>`;
+  return s;
+}
+function renderDrawer(){
+  const e=EV.find(x=>x.key===openKey);
+  if(!e){ closeDrawer(); return; }
+  const ev=e.ev, st=e.status, W=S.settings.watch;
+  const steps=[['new','1 Detected'],['in_progress','2 In progress'],['watching','3 Watching'],['closed','4 Closed']];
+  const stage={new:0,in_progress:1,watching:2,watch_ok:2}[st];
+  const linked = ev?.wos || {};
+  const winStart=refDay()-S.settings.lookback+1;
+  const pendIds=new Set(e.pend.map(d=>d.id));
+  const rows=e.list.slice().reverse();
+  const woRow=(d,box,checked,tag)=>`<tr class="${pendIds.has(d.id)?'newwo':(!linked[d.id]&&st!=='new')||(st==='new'&&toDay(d.date)<winStart)?'prior':''}">
+     ${box?`<td><input type="checkbox" class="wo" value="${esc(d.id)}" ${checked?'checked':''}></td>`:''}
+     <td class="mono"><b>${esc(d.wo)}</b></td><td>${fmt(d.date)}</td><td class="mono">${esc(d.ata)}</td><td>${esc(d.desc)}</td><td>${tag}</td></tr>`;
+  const head=box=>`<thead><tr>${box?'<th style="width:28px"><input type="checkbox" class="allWo"></th>':''}<th>WO</th><th>Date</th><th>ATA</th><th>Description</th><th>MCC</th></tr></thead>`;
+
+  let banner='', woHtml='';
+  if(st==='new'){
+    woHtml=`<div class="panel"><h2>Related work orders</h2><table>${head(true)}<tbody>
+      ${rows.map(d=>woRow(d,true,toDay(d.date)>=winStart,toDay(d.date)<winStart?'<span class="small">older</span>':'<span class="small muted">open</span>')).join('')}</tbody></table>
+      <div class="row" style="margin-top:14px;align-items:flex-end">
+        <label class="f" style="flex:1;min-width:240px">Event name<input type="text" id="evName" value="${esc(rootLabel(e.root))}" placeholder="e.g. AA-NEA Pack 1 repetitive fault"></label>
+        <label class="f" style="width:200px">WO for requested action *<input type="text" id="evAwo" class="mono" placeholder="e.g. WO512345"></label>
+      </div>
+      <div class="row" style="margin-top:10px"><button class="warn" id="setProg">Set selected WOs In progress</button><button id="dismiss">Not repetitive – dismiss</button></div></div>`;
+  } else {
+    if(e.pend.length){
+      const inWatch=e.recur.length;
+      banner=`<div class="banner newwo"><b>${e.pend.length} new WO(s) with the same root</b> arrived for this event${st==='watching'&&inWatch?` — <b>${inWatch} inside the ${W}-day watch period</b>. Merging it means the rectification did not hold: the event is split into cycles and goes back to In progress with a new action WO.`:'.'} Merge if related, or mark as not related.</div>`;
+      woHtml+=`<div class="panel" style="border-color:#f3b7b7"><h2 style="color:var(--new)">New WOs to review</h2><table>${head(true)}<tbody>
+        ${e.pend.slice().reverse().map(d=>woRow(d,true,true,ev.action&&toDay(d.date)>toDay(ev.action.date)?'<span class="chip s-newwo">New · after action</span>':'<span class="chip s-newwo">New</span>')).join('')}</tbody></table>
+        <div class="row" style="margin-top:12px">${st==='watching'&&inWatch?`<button class="warn" id="mergeGo">Merge selected → back to In progress (new action WO)</button>`:`<button class="warn" id="mergeGo">Merge selected into event</button>`}<button id="notRel">Not related</button></div>
+        ${st==='watching'&&inWatch?`<p class="small muted" style="margin-bottom:0">WOs after the action start <b>cycle ${e.cyc+1}</b>; WOs up to the action stay in cycle ${e.cyc} with ${esc(e.awo||'the current action WO')}. You will be asked for the next action WO.</p>`:''}</div>`;
+    }
+    else if(st==='watch_ok') banner=`<div class="banner ok"><b>Watch passed</b> — no new WO for ${W} days after the action. Close the event as effective.</div>`;
+    else if(st==='watching') banner=`<div class="banner watch"><b>Watching · day ${e.dayN}/${W}</b> — until ${fmt(fromDay(toDay(ev.action.date)+W))}. Any new WO with the same root on ${esc(e.ac)} turns this event light red.</div>`;
+    const cycIds=new Set((ev.cycles||[]).flatMap(c=>c.wos));
+    const lk=rows.filter(d=>linked[d.id]), other=rows.filter(d=>!linked[d.id]&&!pendIds.has(d.id)&&!cycIds.has(d.id));
+    const prevCyc=(ev.cycles||[]).slice().reverse().map(c=>`<div class="cyc"><div class="small"><b>Cycle ${c.n}</b> · action WO <span class="chip s-awo">${esc(c.actionWo||'—')}</span>${c.action?` · action ${fmt(c.action.date)} ${esc(c.action.by||'')}: ${esc(c.action.text)}`:''} · <b style="color:var(--new)">not effective</b></div>
+      <table style="margin-top:4px"><tbody>${S.defects.filter(d=>c.wos.includes(d.id)).sort((a,b)=>b.date.localeCompare(a.date)).map(d=>woRow(d,false,false,'<span class="chip s-closed">cycle '+c.n+'</span>')).join('')}</tbody></table></div>`).join('');
+    woHtml+=`<div class="panel"><h2>Linked work orders · cycle ${e.cyc}${e.awo?` · action WO <span class="chip s-awo">${esc(e.awo)}</span>`:''} <span class="muted small">(${lk.length})</span></h2><table>${head(false)}<tbody>
+      ${lk.map(d=>woRow(d,false,false,`<span class="chip s-${st==='in_progress'?'in_progress':'watching'}">${st==='in_progress'?'In progress':'Linked'}</span>`)).join('')}</tbody></table>
+      ${prevCyc?`<h3>Previous cycles</h3>${prevCyc}`:''}
+      ${other.length?`<h3>Same root, not linked</h3><table><tbody>${other.map(d=>woRow(d,false,false,`<button class="small" data-link="${esc(d.id)}" style="padding:3px 8px">Link</button>`)).join('')}</tbody></table>`:''}</div>`;
+  }
+
+  $('#drawer').innerHTML=`
+  <div class="dhead"><button class="x" id="dx">×</button>
+    <div class="t"><span class="mono">${esc(e.ac)}</span> · ${esc(e.name||rootLabel(e.root))}${e.awo?` <span class="chip s-awo" style="font-size:12px;vertical-align:3px">${esc(e.awo)}</span>`:''}${e.cyc>1?` <span class="chip" style="background:#24407c;color:#cfe0ff;vertical-align:3px">cycle ${e.cyc}</span>`:''}</div>
+    <div class="small" style="opacity:.8;margin-top:2px">${e.name?`<span class="mono">${esc(rootLabel(e.root))}</span> · `:''}${esc(e.desc)}</div>
+    <div class="steps">${steps.map(([k,t],i)=>`<span class="${i<stage?'done':i===stage?'cur':''}">${t}</span>`).join('')}</div>
+  </div>
+  <div class="dbody">
+    ${banner}
+    ${st!=='new'?`<div class="panel" style="padding:10px 14px"><div class="row" style="align-items:flex-end">
+      <label class="f" style="flex:1;min-width:220px">Event name<input type="text" id="evRename" value="${esc(e.name||e.desc)}"></label>
+      <label class="f" style="width:170px">Action WO · cycle ${e.cyc}<input type="text" id="evReAwo" class="mono" value="${esc(e.awo)}"></label>
+      <button id="renameGo">Save</button></div></div>`:''}
+    <div class="panel" style="padding:12px 14px">${timeline(e)}
+      <div class="small muted">${e.inWin.length} defect(s) in last ${S.settings.lookback} days · ${e.list.length} in this cycle · status ${chip(st)}${e.pend.length?` <span class="chip s-newwo">+${e.pend.length} new WO</span>`:''}</div></div>
+    ${woHtml}
+
+    ${st==='in_progress'?`<div class="panel"><h2>Action performed</h2>
+      <p class="small muted" style="margin-top:-6px">${e.awo?`Action WO <span class="chip s-awo">${esc(e.awo)}</span> · `:''}Record the rectification. The event then moves to the watch list for ${W} days.${e.pend.length?' <b style="color:var(--new)">Review the new WOs above first.</b>':''}</p>
+      <label class="f">Rectification action<textarea id="actTxt" placeholder="e.g. Pack 1 flow control valve replaced, ops test OK (AMM 21-51-xx)"></textarea></label>
+      <div class="row" style="margin-top:10px;align-items:flex-end">
+        <label class="f">Action date<input type="date" id="actDate" value="${refIso()}"></label>
+        <label class="f">MCC signature<input type="text" id="actBy" placeholder="Initials" style="width:110px"></label>
+        <button class="pri" id="actGo" ${e.pend.length?'disabled title="Merge or reject the new WOs first"':''}>Action performed → watch ${W} days</button>
+      </div></div>`:''}
+
+    ${ev?.action?`<div class="panel"><h2>Action ${e.awo?`<span class="chip s-awo">${esc(e.awo)}</span>`:''}</h2><p style="margin:0">${esc(ev.action.text)}</p><p class="small muted">${fmt(ev.action.date)} · ${esc(ev.action.by||'')}</p>
+      <div class="row">
+      ${st==='watch_ok'?`<button class="good" id="closeOk">Close – rectification effective</button>`:''}
+      ${st==='watching'?`<button id="closeEarly">Close early</button>`:''}
+      </div></div>`:''}
+
+    <div class="panel"><h2>Notes &amp; history</h2>
+      <div class="row"><input type="text" id="noteTxt" placeholder="Add note (troubleshooting, parts on order, engineering query…)" style="flex:1"><button id="noteGo">Add</button></div>
+      <div class="log" style="margin-top:12px">${(ev?.log||[]).slice().reverse().map(l=>`<div><span class="muted mono small">${esc(l.t)}</span> — ${esc(l.m)}</div>`).join('')||'<div class="muted">No history yet.</div>'}</div>
+      <div class="row" style="margin-top:12px"><button id="copyRep">Copy event summary</button></div>
+    </div>
+  </div>`;
+  bindDrawer(e);
+}
+function ensureEv(e){
+  if(!S.events[e.key]) S.events[e.key]={key:e.key, ac:e.ac, root:e.root, status:'new', wos:{}, seen:{}, action:null, actions:[], log:[{t:nowStamp(), m:`RPI detected: ${e.inWin.length} defects in ${S.settings.lookback} days`}]};
+  return S.events[e.key];
+}
+const logEv=(ev,m)=>ev.log.push({t:nowStamp(),m});
+function bindDrawer(e){
+  $('#dx').onclick=closeDrawer;
+  document.querySelectorAll('.allWo').forEach(all=>all.onchange=()=>all.closest('table').querySelectorAll('.wo').forEach(c=>c.checked=all.checked));
+  const woName=id=>S.defects.find(d=>d.id===id)?.wo||id;
+  const sp=$('#setProg'); if(sp) sp.onclick=()=>{
+    const sel=[...document.querySelectorAll('.wo:checked')].map(c=>c.value);
+    if(!sel.length){ toast('Select at least one WO'); return; }
+    if(!($('#evName')?.value||'').trim()){ toast('Give the event a name'); $('#evName')?.focus(); return; }
+    if(!($('#evAwo')?.value||'').trim()){ toast('Enter the WO for the requested action'); $('#evAwo')?.focus(); return; }
+    const ev=ensureEv(e);
+    ev.wos={}; sel.forEach(id=>ev.wos[id]=true);
+    e.list.forEach(d=>ev.seen[d.id]=true);          // everything shown now counts as reviewed
+    const nm=($('#evName')?.value||'').trim(), awo=($('#evAwo')?.value||'').trim().toUpperCase();
+    if(!nm){ toast('Give the event a name'); $('#evName')?.focus(); return; }
+    if(!awo){ toast('Enter the WO for the requested action'); $('#evAwo')?.focus(); return; }
+    ev.name=nm; ev.actionWo=awo; ev.cycles ||= [];
+    ev.status='in_progress'; logEv(ev,`Event "${nm}" — action requested on ${awo}; WOs set In progress: ${sel.map(woName).join(', ')}`);
+    save(); render(); toast('Event moved to In progress');
+  };
+  const rn=$('#renameGo'); if(rn) rn.onclick=()=>{ const nm=$('#evRename').value.trim(), aw=$('#evReAwo').value.trim().toUpperCase(); if(!nm){ toast('Name cannot be empty'); return; } if(!aw){ toast('Action WO cannot be empty'); return; } const ev=ensureEv(e); let ch=false;
+    if(ev.name!==nm){ logEv(ev,`Renamed to "${nm}"`); ev.name=nm; ch=true; }
+    if(ev.actionWo!==aw){ logEv(ev,`Action WO changed ${ev.actionWo||'—'} → ${aw}`); ev.actionWo=aw; ch=true; }
+    if(ch){ save(); render(); toast('Saved'); } };
+  const mg=$('#mergeGo'); if(mg) mg.onclick=()=>{
+    const sel=[...document.querySelectorAll('.wo:checked')].map(c=>c.value);
+    if(!sel.length){ toast('Select at least one WO'); return; }
+    const ev=ensureEv(e);
+    const recurIds=e.recur.map(d=>d.id).filter(id=>sel.includes(id));
+    if(ev.status==='watching' && recurIds.length){
+      const before=sel.filter(id=>!recurIds.includes(id)), n=(ev.cycles?.length||0)+1;
+      modal(`<h2 style="margin-top:0">Split event &amp; request new action</h2>
+        <p class="small">The rectification on <span class="chip s-awo">${esc(ev.actionWo||'—')}</span> did not hold.</p>
+        <table><tbody>
+          <tr><td><b>Cycle ${n}</b> (closed as not effective)</td><td>${Object.keys(ev.wos).length+before.length} WO(s) up to the action ${fmt(ev.action.date)}</td></tr>
+          <tr><td><b>Cycle ${n+1}</b> (new, In progress)</td><td>${recurIds.map(woName).join(', ')}</td></tr></tbody></table>
+        <label class="f" style="margin-top:12px">Next WO number for the new action *<input type="text" id="nextAwo" class="mono" placeholder="e.g. WO512399"></label>
+        <div class="row" style="justify-content:flex-end;margin-top:12px"><button onclick="closeModal()">Cancel</button><button class="warn" id="splitGo">Split &amp; back to In progress</button></div>`,()=>{
+        $('#nextAwo').focus();
+        $('#splitGo').onclick=()=>{
+          const nw=$('#nextAwo').value.trim().toUpperCase();
+          if(!nw){ toast('Enter the next action WO'); $('#nextAwo').focus(); return; }
+          ev.cycles ||= [];
+          before.forEach(id=>ev.seen[id]=true);
+          ev.cycles.push({n, actionWo:ev.actionWo||'', action:ev.action, wos:[...Object.keys(ev.wos), ...before]});
+          ev.actions.push(ev.action);
+          ev.wos={}; recurIds.forEach(id=>{ ev.wos[id]=true; ev.seen[id]=true; });
+          const old=ev.actionWo; ev.actionWo=nw; ev.action=null; ev.status='in_progress';
+          logEv(ev,`New WO during watch (${recurIds.map(woName).join(', ')}) — action on ${old||'—'} not effective. Split: cycle ${n} closed, cycle ${n+1} started, new action WO ${nw}`);
+          closeModal(); save(); render(); toast(`Cycle ${n+1} started · action WO ${nw}`);
+        };
+      });
+      return;
+    }
+    sel.forEach(id=>{ ev.wos[id]=true; ev.seen[id]=true; });
+    logEv(ev,`New WO(s) merged: ${sel.map(woName).join(', ')}`); toast('WO merged into event');
+    save(); render();
+  };
+  const nr=$('#notRel'); if(nr) nr.onclick=()=>{
+    const sel=[...document.querySelectorAll('.wo:checked')].map(c=>c.value);
+    if(!sel.length){ toast('Select at least one WO'); return; }
+    const ev=ensureEv(e); sel.forEach(id=>ev.seen[id]=true);
+    logEv(ev,`Marked not related: ${sel.map(woName).join(', ')}`); save(); render(); toast('Marked as not related');
+  };
+  document.querySelectorAll('[data-link]').forEach(b=>b.onclick=()=>{ const ev=ensureEv(e); ev.wos[b.dataset.link]=true; ev.seen[b.dataset.link]=true; logEv(ev,`WO linked: ${woName(b.dataset.link)}`); save(); render(); });
+  const dm=$('#dismiss'); if(dm) dm.onclick=()=>modal(`<h2>Dismiss as not repetitive</h2><label class="f">Reason<textarea id="dmTxt" placeholder="e.g. different components / unrelated faults within same ATA"></textarea></label><div class="row" style="justify-content:flex-end;margin-top:10px"><button onclick="closeModal()">Cancel</button><button class="pri" id="dmGo">Dismiss</button></div>`,()=>{
+    $('#dmGo').onclick=()=>{ const ev=ensureEv(e); logEv(ev,'Dismissed: '+($('#dmTxt').value||'no reason')); closeEvent(e,'Dismissed – not repetitive', e.list.at(-1).date); closeModal(); };
+  });
+  const ag=$('#actGo'); if(ag) ag.onclick=()=>{
+    const text=$('#actTxt').value.trim(), date=$('#actDate').value, by=$('#actBy').value.trim();
+    if(!text){ toast('Describe the action performed'); return; }
+    if(!date){ toast('Set the action date'); return; }
+    const ev=ensureEv(e); ev.action={text,date,by}; ev.status='watching';
+    logEv(ev,`Action performed on ${ev.actionWo||'—'} (${fmt(date)}${by?', '+by:''}): ${text} → watch ${S.settings.watch} days`);
+    save(); render(); toast(`On watch until ${fmt(fromDay(toDay(date)+S.settings.watch))}`);
+  };
+  const co=$('#closeOk'); if(co) co.onclick=()=>{ const ev=ensureEv(e); logEv(ev,'Closed – rectification effective, no recurrence in watch period'); closeEvent(e,'Effective – no recurrence', e.ev.action.date); };
+  const ce=$('#closeEarly'); if(ce) ce.onclick=()=>{ const ev=ensureEv(e); logEv(ev,'Closed early by MCC (watch not completed)'); closeEvent(e,'Closed early', e.ev.action.date); };
+  $('#noteGo').onclick=()=>{ const t=$('#noteTxt').value.trim(); if(!t) return; const ev=ensureEv(e); logEv(ev,'Note: '+t); save(); render(); };
+  $('#copyRep').onclick=async()=>{
+    const ev=e.ev, lines=[`REPETITIVE DEFECT – ${e.ac} – ${e.name||rootLabel(e.root)}`,...(e.name?[`Root: ${rootLabel(e.root)}`]:[]),...(e.awo?[`Action WO: ${e.awo} (cycle ${e.cyc})`]:[]),`Status: ${ST[e.status].t}  (analysis ${fmt(refIso())})`,`${e.inWin.length} defects in last ${S.settings.lookback} days`,'',...e.list.map(d=>`${fmt(d.date)}  ${d.wo}  ${d.ata}  ${d.desc}`)];
+    if(ev?.action) lines.push('',`Action ${fmt(ev.action.date)} ${ev.action.by||''}: ${ev.action.text}`);
+    if(e.pend.length) lines.push('',`NEW WO(S) TO REVIEW: ${e.pend.map(d=>d.wo+' '+fmt(d.date)).join(', ')}`);
+    if(ev?.cycles?.length) lines.push('',...ev.cycles.map(c=>`Cycle ${c.n}: action WO ${c.actionWo||'—'}${c.action?` ${fmt(c.action.date)} – ${c.action.text}`:''} – NOT EFFECTIVE (${c.wos.length} WO)`));
+    try{ await navigator.clipboard.writeText(lines.join('\n')); toast('Summary copied'); }catch(err){ modal(`<textarea style="min-height:260px">${esc(lines.join('\n'))}</textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button onclick="closeModal()">Close</button></div>`); }
+  };
+}
+function closeEvent(e,outcome,resetDate){
+  const ev=S.events[e.key];
+  S.closed.push({key:e.key, ac:e.ac, root:e.root, name:ev.name||'', actionWo:ev.actionWo||'', cycles:ev.cycles||[], outcome, action:ev.action, actions:ev.actions, closedOn:refIso(), wos:e.list.filter(d=>!ev.wos||ev.wos[d.id]||e.status==='new'||(ev.cycles||[]).some(c=>c.wos.includes(d.id))).map(d=>({wo:d.wo,date:d.date,desc:d.desc})), log:ev.log});
+  S.resetAfter[e.key]=resetDate;
+  delete S.events[e.key];
+  save(); closeDrawer(); render(); toast('Event closed');
+}
+function showClosed(i){
+  const c=S.closed[i];
+  modal(`<h2 style="margin-top:0"><span class="mono">${esc(c.ac)}</span> · ${esc(c.name||rootLabel(c.root))}</h2><p><b>${esc(c.outcome)}</b> · closed ${fmt(c.closedOn)}</p>
+  ${c.actionWo?`<p class="small">Action WO <span class="chip s-awo">${esc(c.actionWo)}</span></p>`:''}
+  ${c.action?`<p class="small">Action ${fmt(c.action.date)} ${esc(c.action.by||'')}: ${esc(c.action.text)}</p>`:''}
+  ${(c.cycles||[]).map(y=>`<p class="small muted">Cycle ${y.n}: ${esc(y.actionWo||'—')}${y.action?' · '+fmt(y.action.date)+' '+esc(y.action.text):''} — not effective</p>`).join('')}
+  <table><tbody>${c.wos.map(w=>`<tr><td class="mono">${esc(w.wo)}</td><td>${fmt(w.date)}</td><td>${esc(w.desc)}</td></tr>`).join('')}</tbody></table>
+  <h3>History</h3><div class="log">${c.log.map(l=>`<div><span class="muted mono small">${esc(l.t)}</span> — ${esc(l.m)}</div>`).join('')}</div>
+  <div class="row" style="justify-content:flex-end;margin-top:12px"><button onclick="closeModal()">Close</button></div>`);
+}
+
+/* ============ modal ============ */
+function modal(html,after){ $('#modalBox').innerHTML=html; $('#modal').classList.add('open'); after&&after(); }
+function closeModal(){ $('#modal').classList.remove('open'); }
+$('#modal').onclick=e=>{ if(e.target.id==='modal') closeModal(); };
+
+/* ============ matrix ============ */
+let MX={};
+function viewMatrix(){
+  if(!S.defects.length) return `<div class="panel empty">No defect data yet.<br><br><button id="demoBtn2" class="pri">＋ Add data sample</button></div>`;
+  const ref=refDay(), lb=S.settings.lookback, th=S.settings.threshold, ws=ref-lb+1, desc=S.settings.rootMode==='desc';
+  const colOf = (d,r) => desc ? ataChap(d.ata) : r;
+  const cells={}, acs=new Set(), cols=new Set();   // cells[ac|col] = {root: count}
+  for(const d of S.defects){
+    const x=toDay(d.date); if(x<ws||x>ref) continue;
+    const r=rootOf(d), k=d.ac+'|'+r;
+    if(S.resetAfter[k] && d.date<=S.resetAfter[k]) continue;
+    const c=colOf(d,r), ck=d.ac+'|'+c;
+    ((cells[ck] ||= {})[r] = ((cells[ck]||{})[r]||0)+1);
+    acs.add(d.ac); cols.add(c);
+  }
+  EV.forEach(e=>{ const d=e.list.at(-1); if(!d) return; const c=colOf(d,e.root), ck=e.ac+'|'+c; acs.add(e.ac); cols.add(c); (cells[ck] ||= {}); if(!(e.root in cells[ck])) cells[ck][e.root]=0; });
+  const A=[...acs].sort(), C=[...cols].sort();
+  if(!A.length) return `<div class="panel empty">No defects in the last ${lb} days to ${fmt(refIso())}.</div>`;
+  const evBy=Object.fromEntries(EV.map(e=>[e.key,e]));
+  const rank={new:4,in_progress:3,watching:2,watch_ok:2};
+  MX=cells;
+  const colTot=C.map(c=>A.reduce((s,a)=>s+Object.values(cells[a+'|'+c]||{}).reduce((x,y)=>x+y,0),0));
+  const rpiCount=EV.filter(e=>e.inWin.length>=th).length;
+  const head = desc ? 'aircraft × ATA chapter' : `aircraft × ${S.settings.ataLevel===2?'ATA chapter':S.settings.ataLevel===4?'ATA sub-chapter':'ATA section'}`;
+  return `<div class="panel"><h2>Defect matrix · ${head}</h2>
+  <p class="muted small" style="margin-top:-6px">${desc?`Each cell shows the <b>highest number of same-description defects</b> on that aircraft within the ATA chapter`:`Defects per aircraft and root`} in the last <b>${lb} days</b> (to ${fmt(refIso())}). <b>≥ ${th}</b> = RPI alert — ${rpiCount} now. Click a cell to open it.</p>
+  <div class="legend"><span><i style="background:#fde3e3"></i>1</span><span><i style="background:#f6b0b0"></i>${th-1>2?'2 – '+(th-1):th-1} (watch out)</span><span><i style="background:#c62828"></i>RPI – new</span><span><i style="background:#e69a1e"></i>In progress</span><span><i style="background:#1f6feb"></i>Watching</span><span><i style="background:#fdecec;box-shadow:inset 0 0 0 2px #c62828"></i>New WO to merge</span></div>
+  <div class="mx"><table><thead><tr><th class="rowh"></th>${C.map(c=>`<th class="col">${esc(desc?(c==='—'?'no ATA':'ATA '+c):rootLabel(c).replace(/^ATA /,''))}</th>`).join('')}<th class="col">Total</th></tr></thead><tbody>
+  ${A.map(a=>{ let tot=0; return `<tr><th class="rowh">${esc(a)}</th>${C.map(c=>{
+      const m=cells[a+'|'+c]||{}, roots=Object.keys(m);
+      const max=roots.reduce((x,r)=>Math.max(x,m[r]),0), sum=roots.reduce((x,r)=>x+m[r],0); tot+=sum;
+      let st=null, pn=false; roots.forEach(r=>{ const e=evBy[a+'|'+r]; if(e&&e.pend.length) pn=true; if(e&&e.status!=='new'&&(!st||rank[e.status]>rank[st])) st=e.status; });
+      let cls='c'; if(max===1) cls+=' v1'; else if(max>1&&max<th) cls+=' v2'; else if(max>=th) cls+=' rpi';
+      if(st) cls+=' st-'+st+(max===0?' rpi':''); if(pn) cls+=' st-pending';
+      const title=`${a} · ${desc?'ATA '+c:rootLabel(c)} · ${sum} defect(s), max ${max} same root${st?' · '+ST[st].t:''}${pn?' · NEW WO to merge':''}`;
+      return `<td class="${cls}" ${roots.length?`data-ac="${esc(a)}" data-root="${esc(c)}"`:''} title="${esc(title)}">${max||(st?'·':'')}</td>`;
+    }).join('')}<td class="tot">${tot}</td></tr>`; }).join('')}
+  <tr><th class="rowh muted">Total</th>${colTot.map(t=>`<td class="tot">${t}</td>`).join('')}<td class="tot"><b>${colTot.reduce((a,b)=>a+b,0)}</b></td></tr>
+  </tbody></table></div></div>`;
+}
+function matrixClick(ac,col){
+  const m=MX[ac+'|'+col]||{};
+  const roots=Object.keys(m).sort((x,y)=>m[y]-m[x]);
+  const evRoots=roots.filter(r=>EV.find(e=>e.key===ac+'|'+r));
+  if(roots.length===1 && evRoots.length===1){ openDrawer(ac+'|'+roots[0]); return; }
+  const ws=refDay()-S.settings.lookback+1;
+  modal(`<h2 style="margin-top:0" class="mono">${esc(ac)} · ${esc(S.settings.rootMode==='desc'?'ATA '+col:rootLabel(col))}</h2>
+  ${roots.map(r=>{ const key=ac+'|'+r, e=EV.find(x=>x.key===key);
+    const list=S.defects.filter(d=>d.ac===ac&&rootOf(d)===r).sort((a,b)=>b.date.localeCompare(a.date));
+    return `<div class="panel" style="padding:12px;margin-bottom:10px"><div class="row" style="justify-content:space-between"><div><b class="mono">${esc(rootLabel(r))}</b> · ${m[r]} in ${S.settings.lookback} d ${e?chip(e.status):''}</div>${e?`<button class="pri" data-open="${esc(key)}">Open event</button>`:''}</div>
+    <table style="margin-top:6px"><tbody>${list.map(d=>`<tr class="${toDay(d.date)<ws?'prior':''}"><td class="mono">${esc(d.wo)}</td><td>${fmt(d.date)}</td><td class="mono">${esc(d.ata)}</td><td>${esc(d.desc)}</td></tr>`).join('')}</tbody></table></div>`; }).join('')}
+  <div class="row" style="justify-content:flex-end"><button onclick="closeModal()">Close</button></div>`,()=>{
+    document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{ closeModal(); openDrawer(b.dataset.open); });
+  });
+}
+
+/* ============ data sample generator ============ */
+const FLEET=['AA-NEA','AA-NEB','AA-NEC','AA-NED','AA-NEE','AA-NEF','AA-CEA','AA-CEB','AA-CEC','AA-CED'];
+const LIB={
+ '21-51-00':['PACK 1 FAULT ECAM','PACK 2 FAULT on climb','AIR PACK 1 OVHT','PACK 2 FAULT after engine start, reset OK'],
+ '21-63-00':['CAB TEMP FAULT fwd zone','Cabin too warm, zone controller fault','AFT cargo heat inop'],
+ '22-83-00':['AUTO FLT FCU 1 FAULT','FCU 2 FAULT on ground'],
+ '23-73-00':['PA crackling rows 20-25','CIDS PA inop aft cabin','Interphone noise at door 2L'],
+ '24-22-00':['ELEC IDG 1 DISC','ELEC GEN 2 FAULT','IDG 1 oil low pressure'],
+ '26-15-00':['SMOKE AFT CARGO DET FAULT','CARGO SMOKE DET 2 FAULT'],
+ '27-50-00':['F/CTL FLAP SYS 1 FAULT','SLATS SYS 2 FAULT'],
+ '28-42-00':['FUEL CTR TK PUMP 1 LO PR','FUEL L TK PUMP 2 LO PR'],
+ '29-11-00':['HYD G RSVR LO AIR PR','HYD Y ENG 2 PUMP LO PR'],
+ '30-21-00':['ANTI ICE ENG 1 VALVE OPEN','ENG 2 ANTI ICE valve fault'],
+ '31-32-00':['ECAM DMC 2 FAULT','DU 3 flickering'],
+ '32-42-00':['BRAKES SYS 1 FAULT','Brake 3 wear pin at limit','BRAKES HOT after taxi-in'],
+ '33-42-00':['Logo light LH inop','Strobe light RH inop'],
+ '34-11-00':['NAV ADR 2 FAULT','ADR 2 disagree, crew switched ADR 3','NAV IAS DISCREPANCY'],
+ '34-51-00':['DME 1 intermittent','NAV DME 2 FAULT'],
+ '36-11-00':['AIR ENG 2 BLEED FAULT','ENG 1 BLEED FAULT, PRV suspected','AIR BLEED LEAK ENG 2'],
+ '38-31-00':['Lav C toilet not flushing','Lav A flush inop, placarded','Vacuum toilet inop'],
+ '49-61-00':['APU AUTO SHUTDOWN','APU FAULT, would not start','APU AUTO SHUT DOWN on ground'],
+ '52-11-00':['Fwd pax door seal worn','DOOR L FWD CABIN not closed indication'],
+ '25-21-00':['Seat 12C recline inop','Seat 3A table damaged','Crew seat harness worn']
+};
+const ATAS=Object.keys(LIB);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+function addSample(){
+  const t=refDay(), rows=[];
+  S.woSeq = S.woSeq || 482100;
+  const VAR=['',' in cruise',' on climb',' after engine start',' reported by crew',', reset IAW MEL',' again',' during descent',' on ground, reset OK'];
+  const add=(ac,ata,daysAgo,base)=>rows.push([ac,fromDay(t-daysAgo),'WO'+(S.woSeq++),ata,base ? base+pick(VAR) : pick(LIB[ata])]);
+  const used=new Set();
+  const pair=()=>{ let k; do{ k=pick(FLEET)+'|'+pick(ATAS); }while(used.has(k)); used.add(k); return k.split('|'); };
+  // RPI scenarios: 3–5 defects of same root inside the window
+  const nRpi=rint(3,5);
+  for(let i=0;i<nRpi;i++){ const [ac,ata]=pair(); const base=pick(LIB[ata]); const n=rint(3,5); for(let j=0;j<n;j++) add(ac,ata,rint(0,S.settings.lookback-1),base); }
+  // near misses: 2 in window, or 3 spread so one falls outside
+  for(let i=0;i<3;i++){ const [ac,ata]=pair(); const base=pick(LIB[ata]); add(ac,ata,rint(0,S.settings.lookback-1),base); add(ac,ata,rint(0,S.settings.lookback-1),base); if(i===2) add(ac,ata,rint(S.settings.lookback+3,S.settings.lookback+15),base); }
+  // background noise over last 35 days
+  const nNoise=rint(22,32);
+  for(let i=0;i<nNoise;i++) add(pick(FLEET),pick(ATAS),rint(0,34));
+  // follow-up WOs for events already In progress / on Watch (to test merging)
+  let fu=0;
+  for(const e of EV.filter(x=>x.ev&&(x.ev.status==='in_progress'||x.ev.status==='watching'))){
+    if(Math.random()<0.35) continue;
+    const base=e.list.at(-1); if(!base) continue;
+    let back=rint(0,2);
+    if(e.ev.status==='watching'){ const gap=t-toDay(e.ev.action.date); back = gap>=1 ? rint(0,Math.min(2,gap-1)) : 0; }
+    rows.push([e.ac,fromDay(t-back),'WO'+(S.woSeq++),base.ata,base.desc.replace(/,.*$/,'')+pick(VAR)]); fu++;
+  }
+  pending={file:`data-sample-${S.uploads.length+1}.xlsx`};
+  importRows(rows,{ac:0,date:1,wo:2,ata:3,desc:4,root:-1},`sample: ${nRpi} planted repeat patterns${fu?`, ${fu} follow-up WO(s) for active events`:''}`);
+}
+function cleanApp(){
+  modal(`<h2 style="margin-top:0">Clean the app?</h2><p>Removes all defects, RPI events, watch list, closed history and uploads from this browser. Detection settings are kept.</p>
+  <div class="row" style="justify-content:flex-end"><button onclick="closeModal()">Cancel</button><button class="danger" id="clrGo">Clean everything</button></div>`,()=>{
+    $('#clrGo').onclick=()=>{ const keep=S.settings; S=blank(); S.settings=keep; save(); closeModal(); closeDrawer(); go('data'); toast('App cleaned'); };
+  });
+}
+
+/* ============ header ============ */
+$('#refDate').onchange=e=>{ S.refDate = e.target.value && e.target.value!==latestData() ? e.target.value : null; save(); render(); };
+$('#refToday').onclick=()=>{ S.refDate=null; save(); render(); };
+$('#hSample').onclick=addSample;
+$('#hClean').onclick=cleanApp;
+$('#nav').addEventListener('click',e=>{ const a=e.target.closest('a[data-tab]'); if(!a) return; e.preventDefault(); go(a.dataset.tab); });
+window.addEventListener('hashchange',()=>{ try{ const h=location.hash.slice(1); if(h&&h!==curTab&&TABS.find(t=>t.id===h)){ curTab=h; render(); } }catch(e){} });
+render();
+</script>
+</body>
+</html>
